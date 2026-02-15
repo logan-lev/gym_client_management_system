@@ -1,27 +1,13 @@
 import os
 import sqlite3
 from datetime import datetime
-
-import psycopg
-from psycopg.rows import dict_row
 from flask import Flask, g, redirect, render_template, request, url_for, flash
 
 APP_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(APP_DIR, "trainer.db")
 
-# If DATABASE_URL is set (Render), we'll use Postgres. Otherwise (local), SQLite.
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-change-this")  # set SECRET_KEY on Render!
-
-
-# -----------------------------
-# SQL helpers (SQLite ? vs Postgres %s)
-# -----------------------------
-def sql(query: str) -> str:
-    # Convert SQLite placeholders (?) to Postgres placeholders (%s) when needed
-    return query.replace("?", "%s") if DATABASE_URL else query
+app.secret_key = os.environ.get("SECRET_KEY", "dev-change-this")  # set in PythonAnywhere
 
 
 # -----------------------------
@@ -30,14 +16,9 @@ def sql(query: str) -> str:
 def get_db():
     # One connection per request
     if "db" not in g:
-        if DATABASE_URL:
-            # Postgres (Render)
-            g.db = psycopg.connect(DATABASE_URL, row_factory=dict_row)
-        else:
-            # SQLite (local dev)
-            g.db = sqlite3.connect(DB_PATH)
-            g.db.row_factory = sqlite3.Row
-            g.db.execute("PRAGMA foreign_keys = ON;")
+        g.db = sqlite3.connect(DB_PATH)
+        g.db.row_factory = sqlite3.Row
+        g.db.execute("PRAGMA foreign_keys = ON;")
     return g.db
 
 
@@ -49,120 +30,61 @@ def close_db(_exception):
 
 
 def init_db():
-    if DATABASE_URL:
-        # Postgres schema
-        with psycopg.connect(DATABASE_URL) as db:
-            db.execute(
-                """
-                CREATE TABLE IF NOT EXISTS clients (
-                  id SERIAL PRIMARY KEY,
-                  first_name TEXT NOT NULL,
-                  last_name  TEXT NOT NULL,
-                  date_of_birth DATE NOT NULL,
-                  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                );
-                """
-            )
+    db = sqlite3.connect(DB_PATH)
+    db.execute("PRAGMA foreign_keys = ON;")
 
-            db.execute(
-                """
-                CREATE TABLE IF NOT EXISTS health_profiles (
-                  client_id INTEGER PRIMARY KEY,
-                  medication TEXT,
-                  health_problems TEXT,
-                  FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
-                );
-                """
-            )
+    db.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS clients (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          first_name TEXT NOT NULL,
+          last_name  TEXT NOT NULL,
+          date_of_birth TEXT NOT NULL, -- ISO 'YYYY-MM-DD'
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
 
-            db.execute(
-                """
-                CREATE TABLE IF NOT EXISTS measurements (
-                  id SERIAL PRIMARY KEY,
-                  client_id INTEGER NOT NULL,
-                  date DATE NOT NULL,
+        CREATE TABLE IF NOT EXISTS health_profiles (
+          client_id INTEGER PRIMARY KEY,
+          medication TEXT,
+          health_problems TEXT,
+          FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+        );
 
-                  weight DOUBLE PRECISION,
-                  bmi DOUBLE PRECISION,
-                  fat_percentage DOUBLE PRECISION,
+        CREATE TABLE IF NOT EXISTS measurements (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          client_id INTEGER NOT NULL,
+          date TEXT NOT NULL, -- ISO 'YYYY-MM-DD'
 
-                  grip_strength DOUBLE PRECISION,
-                  plank_seconds INTEGER,
-                  push_ups INTEGER,
+          weight REAL,
+          bmi REAL,
+          fat_percentage REAL,
 
-                  notes TEXT,
-                  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          grip_strength REAL,
+          plank_seconds INTEGER,
+          push_ups INTEGER,
 
-                  FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
-                );
-                """
-            )
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
 
-            db.execute(
-                """
-                CREATE INDEX IF NOT EXISTS idx_measurements_client_date
-                ON measurements(client_id, date);
-                """
-            )
-    else:
-        # SQLite schema (local dev)
-        db = sqlite3.connect(DB_PATH)
-        db.execute("PRAGMA foreign_keys = ON;")
+          FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+        );
 
-        db.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS clients (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              first_name TEXT NOT NULL,
-              last_name  TEXT NOT NULL,
-              date_of_birth TEXT NOT NULL, -- ISO 'YYYY-MM-DD'
-              created_at TEXT NOT NULL DEFAULT (datetime('now')),
-              updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-            );
+        CREATE INDEX IF NOT EXISTS idx_measurements_client_date
+        ON measurements(client_id, date);
+        """
+    )
 
-            CREATE TABLE IF NOT EXISTS health_profiles (
-              client_id INTEGER PRIMARY KEY,
-              medication TEXT,
-              health_problems TEXT,
-              FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS measurements (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              client_id INTEGER NOT NULL,
-              date TEXT NOT NULL, -- ISO 'YYYY-MM-DD'
-
-              weight REAL,
-              bmi REAL,
-              fat_percentage REAL,
-
-              grip_strength REAL,
-              plank_seconds INTEGER,
-              push_ups INTEGER,
-
-              notes TEXT,
-              created_at TEXT NOT NULL DEFAULT (datetime('now')),
-
-              FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_measurements_client_date
-            ON measurements(client_id, date);
-            """
-        )
-
-        db.commit()
-        db.close()
+    db.commit()
+    db.close()
 
 
-# Run init once on startup (safe due to IF NOT EXISTS)
+# Run init once on startup
 with app.app_context():
     init_db()
 
 
 def parse_float(value):
-    # Accept empty -> None
     if value is None:
         return None
     value = value.strip()
@@ -187,7 +109,6 @@ def parse_int(value):
 
 
 def parse_date_iso(value):
-    # Expect YYYY-MM-DD
     if value is None:
         return None
     value = value.strip()
@@ -216,18 +137,16 @@ def clients_list():
     if q:
         like = f"%{q}%"
         clients = db.execute(
-            sql(
-                """
-                SELECT * FROM clients
-                WHERE first_name LIKE ? OR last_name LIKE ?
-                ORDER BY last_name, first_name
-                """
-            ),
+            """
+            SELECT * FROM clients
+            WHERE first_name LIKE ? OR last_name LIKE ?
+            ORDER BY last_name, first_name
+            """,
             (like, like),
         ).fetchall()
     else:
         clients = db.execute(
-            sql("SELECT * FROM clients ORDER BY last_name, first_name")
+            "SELECT * FROM clients ORDER BY last_name, first_name"
         ).fetchall()
 
     return render_template("clients_list.html", clients=clients, q=q)
@@ -255,46 +174,18 @@ def client_new():
 
         db = get_db()
         cur = db.execute(
-            sql(
-                """
-                INSERT INTO clients (first_name, last_name, date_of_birth)
-                VALUES (?, ?, ?)
-                """
-            ),
+            """
+            INSERT INTO clients (first_name, last_name, date_of_birth)
+            VALUES (?, ?, ?)
+            """,
             (first_name, last_name, dob),
         )
+        client_id = cur.lastrowid
 
-        # sqlite3 cursor has lastrowid; psycopg uses fetchone RETURNING
-        if DATABASE_URL:
-            # Re-run insert with RETURNING id for Postgres
-            # (psycopg won't give lastrowid the same way)
-            cur = db.execute(
-                """
-                INSERT INTO clients (first_name, last_name, date_of_birth)
-                VALUES (%s, %s, %s)
-                RETURNING id
-                """,
-                (first_name, last_name, dob),
-            )
-            client_id = cur.fetchone()["id"]
-        else:
-            client_id = cur.lastrowid
-
-        # Ensure a health profile row exists (optional fields)
-        if DATABASE_URL:
-            db.execute(
-                """
-                INSERT INTO health_profiles (client_id, medication, health_problems)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (client_id) DO NOTHING
-                """,
-                (client_id, "", ""),
-            )
-        else:
-            db.execute(
-                "INSERT OR IGNORE INTO health_profiles (client_id, medication, health_problems) VALUES (?, '', '')",
-                (client_id,),
-            )
+        db.execute(
+            "INSERT OR IGNORE INTO health_profiles (client_id, medication, health_problems) VALUES (?, '', '')",
+            (client_id,),
+        )
 
         db.commit()
         flash("Client created.", "success")
@@ -307,25 +198,21 @@ def client_new():
 def client_detail(client_id):
     db = get_db()
 
-    client = db.execute(
-        sql("SELECT * FROM clients WHERE id = ?"), (client_id,)
-    ).fetchone()
+    client = db.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
     if client is None:
         flash("Client not found.", "error")
         return redirect(url_for("clients_list"))
 
     health = db.execute(
-        sql("SELECT * FROM health_profiles WHERE client_id = ?"), (client_id,)
+        "SELECT * FROM health_profiles WHERE client_id = ?", (client_id,)
     ).fetchone()
 
     measurements = db.execute(
-        sql(
-            """
-            SELECT * FROM measurements
-            WHERE client_id = ?
-            ORDER BY date DESC, id DESC
-            """
-        ),
+        """
+        SELECT * FROM measurements
+        WHERE client_id = ?
+        ORDER BY date DESC, id DESC
+        """,
         (client_id,),
     ).fetchall()
 
@@ -340,15 +227,10 @@ def client_detail(client_id):
     )
 
 
-# -----------------------------
-# Edit Client
-# -----------------------------
 @app.route("/clients/<int:client_id>/edit", methods=["GET", "POST"])
 def client_edit(client_id):
     db = get_db()
-    client = db.execute(
-        sql("SELECT * FROM clients WHERE id = ?"), (client_id,)
-    ).fetchone()
+    client = db.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
     if client is None:
         flash("Client not found.", "error")
         return redirect(url_for("clients_list"))
@@ -369,7 +251,6 @@ def client_edit(client_id):
         if errors:
             for e in errors:
                 flash(e, "error")
-            # Re-render with what they typed
             return render_template(
                 "client_edit.html",
                 client={
@@ -380,47 +261,31 @@ def client_edit(client_id):
                 },
             )
 
-        if DATABASE_URL:
-            db.execute(
-                """
-                UPDATE clients
-                SET first_name = %s, last_name = %s, date_of_birth = %s, updated_at = NOW()
-                WHERE id = %s
-                """,
-                (first_name, last_name, dob, client_id),
-            )
-        else:
-            db.execute(
-                """
-                UPDATE clients
-                SET first_name = ?, last_name = ?, date_of_birth = ?, updated_at = datetime('now')
-                WHERE id = ?
-                """,
-                (first_name, last_name, dob, client_id),
-            )
-
+        db.execute(
+            """
+            UPDATE clients
+            SET first_name = ?, last_name = ?, date_of_birth = ?, updated_at = datetime('now')
+            WHERE id = ?
+            """,
+            (first_name, last_name, dob, client_id),
+        )
         db.commit()
+
         flash("Client updated.", "success")
         return redirect(url_for("client_detail", client_id=client_id))
 
     return render_template("client_edit.html", client=client)
 
 
-# -----------------------------
-# Delete Client
-# -----------------------------
 @app.route("/clients/<int:client_id>/delete", methods=["POST"])
 def client_delete(client_id):
     db = get_db()
-    client = db.execute(
-        sql("SELECT * FROM clients WHERE id = ?"), (client_id,)
-    ).fetchone()
+    client = db.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
     if client is None:
         flash("Client not found.", "error")
         return redirect(url_for("clients_list"))
 
-    # This will cascade delete health_profiles + measurements due to ON DELETE CASCADE
-    db.execute(sql("DELETE FROM clients WHERE id = ?"), (client_id,))
+    db.execute("DELETE FROM clients WHERE id = ?", (client_id,))
     db.commit()
 
     flash("Client deleted.", "success")
@@ -430,44 +295,29 @@ def client_delete(client_id):
 @app.route("/clients/<int:client_id>/health/edit", methods=["GET", "POST"])
 def health_edit(client_id):
     db = get_db()
-    client = db.execute(
-        sql("SELECT * FROM clients WHERE id = ?"), (client_id,)
-    ).fetchone()
+    client = db.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
     if client is None:
         flash("Client not found.", "error")
         return redirect(url_for("clients_list"))
 
     health = db.execute(
-        sql("SELECT * FROM health_profiles WHERE client_id = ?"), (client_id,)
+        "SELECT * FROM health_profiles WHERE client_id = ?", (client_id,)
     ).fetchone()
 
     if request.method == "POST":
         medication = request.form.get("medication", "").strip()
         health_problems = request.form.get("health_problems", "").strip()
 
-        if DATABASE_URL:
-            db.execute(
-                """
-                INSERT INTO health_profiles (client_id, medication, health_problems)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (client_id) DO UPDATE SET
-                  medication=excluded.medication,
-                  health_problems=excluded.health_problems
-                """,
-                (client_id, medication, health_problems),
-            )
-        else:
-            db.execute(
-                """
-                INSERT INTO health_profiles (client_id, medication, health_problems)
-                VALUES (?, ?, ?)
-                ON CONFLICT(client_id) DO UPDATE SET
-                  medication=excluded.medication,
-                  health_problems=excluded.health_problems
-                """,
-                (client_id, medication, health_problems),
-            )
-
+        db.execute(
+            """
+            INSERT INTO health_profiles (client_id, medication, health_problems)
+            VALUES (?, ?, ?)
+            ON CONFLICT(client_id) DO UPDATE SET
+              medication=excluded.medication,
+              health_problems=excluded.health_problems
+            """,
+            (client_id, medication, health_problems),
+        )
         db.commit()
         flash("Health profile updated.", "success")
         return redirect(url_for("client_detail", client_id=client_id))
@@ -478,9 +328,7 @@ def health_edit(client_id):
 @app.route("/clients/<int:client_id>/measurements/new", methods=["GET", "POST"])
 def measurement_new(client_id):
     db = get_db()
-    client = db.execute(
-        sql("SELECT * FROM clients WHERE id = ?"), (client_id,)
-    ).fetchone()
+    client = db.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
     if client is None:
         flash("Client not found.", "error")
         return redirect(url_for("clients_list"))
@@ -502,7 +350,6 @@ def measurement_new(client_id):
         if date in (None, "INVALID"):
             errors.append("Measurement date must be in YYYY-MM-DD format.")
 
-        # Validate numeric fields
         for label, val in [
             ("Weight", weight),
             ("BMI", bmi),
@@ -520,13 +367,11 @@ def measurement_new(client_id):
             return render_template("measurement_new.html", client=client)
 
         db.execute(
-            sql(
-                """
-                INSERT INTO measurements
-                (client_id, date, weight, bmi, fat_percentage, grip_strength, plank_seconds, push_ups, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """
-            ),
+            """
+            INSERT INTO measurements
+            (client_id, date, weight, bmi, fat_percentage, grip_strength, plank_seconds, push_ups, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
             (
                 client_id,
                 date,
@@ -543,7 +388,6 @@ def measurement_new(client_id):
         flash("Measurement added.", "success")
         return redirect(url_for("client_detail", client_id=client_id))
 
-    # Default date to today for convenience
     today = datetime.now().strftime("%Y-%m-%d")
     return render_template("measurement_new.html", client=client, today=today)
 
