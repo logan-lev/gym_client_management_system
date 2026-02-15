@@ -1,13 +1,37 @@
 import os
 import sqlite3
 from datetime import datetime
-from flask import Flask, g, redirect, render_template, request, url_for, flash
+from functools import wraps
+
+from flask import (
+    Flask,
+    g,
+    redirect,
+    render_template,
+    request,
+    url_for,
+    flash,
+    session,
+)
 
 APP_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(APP_DIR, "trainer.db")
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-change-this")  # set in PythonAnywhere
+app.secret_key = os.environ.get("SECRET_KEY", "dev-change-this")  # Set SECRET_KEY on PythonAnywhere!
+
+
+# -----------------------------
+# Auth helpers (single trainer password)
+# -----------------------------
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login"))
+        return view(*args, **kwargs)
+
+    return wrapped
 
 
 # -----------------------------
@@ -85,6 +109,7 @@ with app.app_context():
 
 
 def parse_float(value):
+    # Accept empty -> None
     if value is None:
         return None
     value = value.strip()
@@ -109,6 +134,7 @@ def parse_int(value):
 
 
 def parse_date_iso(value):
+    # Expect YYYY-MM-DD
     if value is None:
         return None
     value = value.strip()
@@ -122,14 +148,40 @@ def parse_date_iso(value):
 
 
 # -----------------------------
+# Auth routes
+# -----------------------------
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        password = request.form.get("password", "")
+
+        trainer_password = os.environ.get("TRAINER_PASSWORD", "")
+        if trainer_password and password == trainer_password:
+            session["logged_in"] = True
+            return redirect(url_for("clients_list"))
+
+        flash("Invalid password.", "error")
+
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+# -----------------------------
 # Routes
 # -----------------------------
 @app.route("/")
+@login_required
 def home():
     return redirect(url_for("clients_list"))
 
 
 @app.route("/clients")
+@login_required
 def clients_list():
     db = get_db()
     q = request.args.get("q", "").strip()
@@ -145,14 +197,13 @@ def clients_list():
             (like, like),
         ).fetchall()
     else:
-        clients = db.execute(
-            "SELECT * FROM clients ORDER BY last_name, first_name"
-        ).fetchall()
+        clients = db.execute("SELECT * FROM clients ORDER BY last_name, first_name").fetchall()
 
     return render_template("clients_list.html", clients=clients, q=q)
 
 
 @app.route("/clients/new", methods=["GET", "POST"])
+@login_required
 def client_new():
     if request.method == "POST":
         first_name = request.form.get("first_name", "").strip()
@@ -182,6 +233,7 @@ def client_new():
         )
         client_id = cur.lastrowid
 
+        # Ensure a health profile row exists (optional fields)
         db.execute(
             "INSERT OR IGNORE INTO health_profiles (client_id, medication, health_problems) VALUES (?, '', '')",
             (client_id,),
@@ -195,6 +247,7 @@ def client_new():
 
 
 @app.route("/clients/<int:client_id>")
+@login_required
 def client_detail(client_id):
     db = get_db()
 
@@ -228,6 +281,7 @@ def client_detail(client_id):
 
 
 @app.route("/clients/<int:client_id>/edit", methods=["GET", "POST"])
+@login_required
 def client_edit(client_id):
     db = get_db()
     client = db.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
@@ -251,6 +305,7 @@ def client_edit(client_id):
         if errors:
             for e in errors:
                 flash(e, "error")
+            # Re-render with what they typed
             return render_template(
                 "client_edit.html",
                 client={
@@ -278,6 +333,7 @@ def client_edit(client_id):
 
 
 @app.route("/clients/<int:client_id>/delete", methods=["POST"])
+@login_required
 def client_delete(client_id):
     db = get_db()
     client = db.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
@@ -285,6 +341,7 @@ def client_delete(client_id):
         flash("Client not found.", "error")
         return redirect(url_for("clients_list"))
 
+    # This will cascade delete health_profiles + measurements due to ON DELETE CASCADE
     db.execute("DELETE FROM clients WHERE id = ?", (client_id,))
     db.commit()
 
@@ -293,6 +350,7 @@ def client_delete(client_id):
 
 
 @app.route("/clients/<int:client_id>/health/edit", methods=["GET", "POST"])
+@login_required
 def health_edit(client_id):
     db = get_db()
     client = db.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
@@ -326,6 +384,7 @@ def health_edit(client_id):
 
 
 @app.route("/clients/<int:client_id>/measurements/new", methods=["GET", "POST"])
+@login_required
 def measurement_new(client_id):
     db = get_db()
     client = db.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
@@ -350,6 +409,7 @@ def measurement_new(client_id):
         if date in (None, "INVALID"):
             errors.append("Measurement date must be in YYYY-MM-DD format.")
 
+        # Validate numeric fields
         for label, val in [
             ("Weight", weight),
             ("BMI", bmi),
@@ -388,6 +448,7 @@ def measurement_new(client_id):
         flash("Measurement added.", "success")
         return redirect(url_for("client_detail", client_id=client_id))
 
+    # Default date to today for convenience
     today = datetime.now().strftime("%Y-%m-%d")
     return render_template("measurement_new.html", client=client, today=today)
 
