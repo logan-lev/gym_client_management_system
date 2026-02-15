@@ -18,12 +18,20 @@ APP_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(APP_DIR, "trainer.db")
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-change-this")  # Set SECRET_KEY on PythonAnywhere!
+
+# -------------------------------------------------
+# Security / Sessions
+# -------------------------------------------------
+# IMPORTANT:
+# - On PythonAnywhere free, set these in the WSGI file:
+#   os.environ["SECRET_KEY"] = "..."
+#   os.environ["TRAINER_PASSWORD"] = "..."
+#
+# Local fallback values are only for development.
+app.secret_key = os.environ.get("SECRET_KEY", "dev-change-this")
+app.config["SESSION_PERMANENT"] = False  # require login again after closing browser
 
 
-# -----------------------------
-# Auth helpers (single trainer password)
-# -----------------------------
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
@@ -103,7 +111,7 @@ def init_db():
     db.close()
 
 
-# Run init once on startup
+# Ensure DB exists on startup (safe to call repeatedly)
 with app.app_context():
     init_db()
 
@@ -152,12 +160,20 @@ def parse_date_iso(value):
 # -----------------------------
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    # If already logged in, go straight to clients
+    if session.get("logged_in"):
+        return redirect(url_for("clients_list"))
+
     if request.method == "POST":
         password = request.form.get("password", "")
 
-        trainer_password = os.environ.get("TRAINER_PASSWORD", "default")
-        if trainer_password and password == trainer_password:
+        trainer_password = os.environ.get("TRAINER_PASSWORD", "changeme")
+
+        if password == trainer_password:
+            # Session cookie will be cleared when browser closes (SESSION_PERMANENT=False)
+            session.clear()
             session["logged_in"] = True
+            session.permanent = False
             return redirect(url_for("clients_list"))
 
         flash("Invalid password.", "error")
@@ -175,8 +191,10 @@ def logout():
 # Routes
 # -----------------------------
 @app.route("/")
-@login_required
 def home():
+    # Always require login when arriving fresh
+    if not session.get("logged_in"):
+        return redirect(url_for("login"))
     return redirect(url_for("clients_list"))
 
 
@@ -305,7 +323,6 @@ def client_edit(client_id):
         if errors:
             for e in errors:
                 flash(e, "error")
-            # Re-render with what they typed
             return render_template(
                 "client_edit.html",
                 client={
@@ -341,7 +358,6 @@ def client_delete(client_id):
         flash("Client not found.", "error")
         return redirect(url_for("clients_list"))
 
-    # This will cascade delete health_profiles + measurements due to ON DELETE CASCADE
     db.execute("DELETE FROM clients WHERE id = ?", (client_id,))
     db.commit()
 
@@ -409,7 +425,6 @@ def measurement_new(client_id):
         if date in (None, "INVALID"):
             errors.append("Measurement date must be in YYYY-MM-DD format.")
 
-        # Validate numeric fields
         for label, val in [
             ("Weight", weight),
             ("BMI", bmi),
@@ -448,7 +463,6 @@ def measurement_new(client_id):
         flash("Measurement added.", "success")
         return redirect(url_for("client_detail", client_id=client_id))
 
-    # Default date to today for convenience
     today = datetime.now().strftime("%Y-%m-%d")
     return render_template("measurement_new.html", client=client, today=today)
 
