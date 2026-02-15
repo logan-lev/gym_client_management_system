@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1 class="h3 mb-3">Edit Health — {{ client["first_name"] }} {{ client["last_name"] }}</h1>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post">
+        <div class="mb-3">
+          <label class="form-label">Medication</label>
+          <textarea class="form-control" name="medication" rows="2">{{ health["medication"] if health else "" }}</textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Health problems</label>
+          <textarea class="form-control" name="health_problems" rows="6">{{ health["health_problems"] if health else "" }}</textarea>
+        </div>
+
+        <button class="btn btn-primary" type="submit">Save</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('client_detail', client_id=client['id']) }}">Cancel</a>
+      </form>
+    </div>
+  </div>
+{% endblock %}

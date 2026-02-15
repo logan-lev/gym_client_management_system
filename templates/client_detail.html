@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h3 mb-1">{{ client["first_name"] }} {{ client["last_name"] }}</h1>
+      <div class="text-muted">DOB: {{ client["date_of_birth"] }}</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('client_edit', client_id=client['id']) }}">Edit Client</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('health_edit', client_id=client['id']) }}">Edit Health</a>
+      <a class="btn btn-primary" href="{{ url_for('measurement_new', client_id=client['id']) }}">+ Add Measurement</a>
+
+      <form
+        method="post"
+        action="{{ url_for('client_delete', client_id=client['id']) }}"
+        onsubmit="return confirm('Delete this client AND all measurements? This cannot be undone.');"
+        class="ms-0"
+      >
+        <button class="btn btn-danger" type="submit">Delete Client</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header fw-semibold">Health</div>
+        <div class="card-body">
+          <div class="mb-2">
+            <div class="text-muted small">Medication</div>
+            <div>{{ health["medication"] if health else "" }}</div>
+          </div>
+          <div>
+            <div class="text-muted small">Health problems</div>
+            <div style="white-space: pre-wrap;">{{ health["health_problems"] if health else "" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header fw-semibold">Latest Measurements</div>
+        <div class="card-body">
+          {% if latest %}
+            <div class="text-muted mb-2">Date: {{ latest["date"] }}</div>
+            <ul class="mb-0">
+              <li>Weight: {{ latest["weight"] if latest["weight"] is not none else "-" }}</li>
+              <li>BMI: {{ latest["bmi"] if latest["bmi"] is not none else "-" }}</li>
+              <li>Fat %: {{ latest["fat_percentage"] if latest["fat_percentage"] is not none else "-" }}</li>
+              <li>Grip strength: {{ latest["grip_strength"] if latest["grip_strength"] is not none else "-" }}</li>
+              <li>Plank (sec): {{ latest["plank_seconds"] if latest["plank_seconds"] is not none else "-" }}</li>
+              <li>Push ups: {{ latest["push_ups"] if latest["push_ups"] is not none else "-" }}</li>
+            </ul>
+          {% else %}
+            <div class="text-muted">No measurements yet.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header fw-semibold">Measurement History</div>
+        <div class="table-responsive">
+          <table class="table table-striped mb-0">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Weight</th>
+                <th>BMI</th>
+                <th>Fat %</th>
+                <th>Grip</th>
+                <th>Plank (sec)</th>
+                <th>Push ups</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in measurements %}
+                <tr>
+                  <td>{{ m["date"] }}</td>
+                  <td>{{ m["weight"] if m["weight"] is not none else "" }}</td>
+                  <td>{{ m["bmi"] if m["bmi"] is not none else "" }}</td>
+                  <td>{{ m["fat_percentage"] if m["fat_percentage"] is not none else "" }}</td>
+                  <td>{{ m["grip_strength"] if m["grip_strength"] is not none else "" }}</td>
+                  <td>{{ m["plank_seconds"] if m["plank_seconds"] is not none else "" }}</td>
+                  <td>{{ m["push_ups"] if m["push_ups"] is not none else "" }}</td>
+                  <td style="max-width: 420px; white-space: pre-wrap;">{{ m["notes"] or "" }}</td>
+                </tr>
+              {% endfor %}
+              {% if measurements|length == 0 %}
+                <tr><td colspan="8" class="text-center text-muted py-4">No measurement history.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

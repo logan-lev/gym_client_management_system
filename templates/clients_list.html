@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h3 mb-0">Clients</h1>
+  </div>
+
+  <form class="row g-2 mb-3" method="get" action="{{ url_for('clients_list') }}">
+    <div class="col-sm-8 col-md-6">
+      <input class="form-control" name="q" placeholder="Search by first/last name" value="{{ q }}" />
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary" type="submit">Search</button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('clients_list') }}">Clear</a>
+    </div>
+  </form>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>DOB</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in clients %}
+            <tr>
+              <td>{{ c["last_name"] }}, {{ c["first_name"] }}</td>
+              <td>{{ c["date_of_birth"] }}</td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('client_detail', client_id=c['id']) }}">
+                  View
+                </a>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('client_edit', client_id=c['id']) }}">
+                  Edit
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+          {% if clients|length == 0 %}
+            <tr><td colspan="3" class="text-center text-muted py-4">No clients found.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1 class="h3 mb-3">Add Measurement — {{ client["first_name"] }} {{ client["last_name"] }}</h1>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Date (YYYY-MM-DD)</label>
+            <input class="form-control" name="date" value="{{ today if today else '' }}" required />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Weight</label>
+            <input class="form-control" name="weight" placeholder="e.g. 185.2" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">BMI</label>
+            <input class="form-control" name="bmi" placeholder="e.g. 24.8" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Fat %</label>
+            <input class="form-control" name="fat_percentage" placeholder="e.g. 18.5" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Grip strength</label>
+            <input class="form-control" name="grip_strength" placeholder="e.g. 105" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Plank (seconds)</label>
+            <input class="form-control" name="plank_seconds" placeholder="e.g. 90" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Push ups</label>
+            <input class="form-control" name="push_ups" placeholder="e.g. 32" />
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Notes</label>
+            <textarea class="form-control" name="notes" rows="3" placeholder="Optional session notes..."></textarea>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <button class="btn btn-primary" type="submit">Save</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('client_detail', client_id=client['id']) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
