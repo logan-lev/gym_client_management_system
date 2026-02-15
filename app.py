@@ -155,7 +155,7 @@ def login():
     if request.method == "POST":
         password = request.form.get("password", "")
 
-        trainer_password = os.environ.get("TRAINER_PASSWORD", "")
+        trainer_password = os.environ.get("TRAINER_PASSWORD", "default")
         if trainer_password and password == trainer_password:
             session["logged_in"] = True
             return redirect(url_for("clients_list"))
