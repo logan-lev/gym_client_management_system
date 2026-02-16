@@ -28,7 +28,7 @@
           {% for c in clients %}
             <tr>
               <td>{{ c["last_name"] }}, {{ c["first_name"] }}</td>
-              <td>{{ c["date_of_birth"] }}</td>
+              <td>{{ to_mmddyyyy(c["date_of_birth"]) }}</td>
               <td class="text-end">
                 <a class="btn btn-sm btn-outline-primary" href="{{ url_for('client_detail', client_id=c['id']) }}">
                   View

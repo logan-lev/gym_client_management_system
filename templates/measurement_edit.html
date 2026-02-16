@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1 class="h3 mb-3">Edit Measurement — {{ client["first_name"] }} {{ client["last_name"] }}</h1>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post">
+        <div class="row g-3">
+
+          <div class="col-md-4">
+            <label class="form-label">Date (MM/DD/YYYY)</label>
+            <input
+              class="form-control"
+              name="date"
+              value="{{ to_mmddyyyy(m['date']) }}"
+              placeholder="MM/DD/YYYY"
+              required
+            />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Weight</label>
+            <input class="form-control" name="weight" value="{{ m['weight'] if m['weight'] is not none else '' }}" placeholder="e.g. 185.2" inputmode="decimal" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">BMI</label>
+            <input class="form-control" name="bmi" value="{{ m['bmi'] if m['bmi'] is not none else '' }}" placeholder="e.g. 24.8" inputmode="decimal" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Fat %</label>
+            <input class="form-control" name="fat_percentage" value="{{ m['fat_percentage'] if m['fat_percentage'] is not none else '' }}" placeholder="e.g. 18.5" inputmode="decimal" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Grip strength</label>
+            <input class="form-control" name="grip_strength" value="{{ m['grip_strength'] if m['grip_strength'] is not none else '' }}" placeholder="e.g. 105" inputmode="decimal" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Plank (seconds)</label>
+            <input class="form-control" name="plank_seconds" value="{{ m['plank_seconds'] if m['plank_seconds'] is not none else '' }}" placeholder="e.g. 90" inputmode="numeric" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Push ups</label>
+            <input class="form-control" name="push_ups" value="{{ m['push_ups'] if m['push_ups'] is not none else '' }}" placeholder="e.g. 32" inputmode="numeric" />
+          </div>
+
+          <div class="col-12 mt-2">
+            <hr class="my-2" />
+            <h2 class="h5 mb-0">Functional Assessment</h2>
+            <p class="text-muted mb-0" style="font-size: 0.95rem;">
+              Fill out any fields that apply for this date.
+            </p>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Bodyweight Squat (reps)</label>
+            <input class="form-control" name="bodyweight_squat_reps" value="{{ m['bodyweight_squat_reps'] if m['bodyweight_squat_reps'] is not none else '' }}" inputmode="numeric" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Chair Squat (reps)</label>
+            <input class="form-control" name="chair_squat_reps" value="{{ m['chair_squat_reps'] if m['chair_squat_reps'] is not none else '' }}" inputmode="numeric" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Side Plank — Left (seconds)</label>
+            <input class="form-control" name="side_plank_left_seconds" value="{{ m['side_plank_left_seconds'] if m['side_plank_left_seconds'] is not none else '' }}" inputmode="numeric" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Side Plank — Right (seconds)</label>
+            <input class="form-control" name="side_plank_right_seconds" value="{{ m['side_plank_right_seconds'] if m['side_plank_right_seconds'] is not none else '' }}" inputmode="numeric" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Dead Hang (seconds)</label>
+            <input class="form-control" name="dead_hang_seconds" value="{{ m['dead_hang_seconds'] if m['dead_hang_seconds'] is not none else '' }}" inputmode="numeric" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Grip — Left (kg)</label>
+            <input class="form-control" name="grip_left_kg" value="{{ m['grip_left_kg'] if m['grip_left_kg'] is not none else '' }}" inputmode="decimal" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Grip — Right (kg)</label>
+            <input class="form-control" name="grip_right_kg" value="{{ m['grip_right_kg'] if m['grip_right_kg'] is not none else '' }}" inputmode="decimal" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Single-Leg Balance — Left (seconds)</label>
+            <input class="form-control" name="single_leg_balance_left_seconds" value="{{ m['single_leg_balance_left_seconds'] if m['single_leg_balance_left_seconds'] is not none else '' }}" inputmode="numeric" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Single-Leg Balance — Right (seconds)</label>
+            <input class="form-control" name="single_leg_balance_right_seconds" value="{{ m['single_leg_balance_right_seconds'] if m['single_leg_balance_right_seconds'] is not none else '' }}" inputmode="numeric" />
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Shoulder Mobility Reach</label>
+            <input class="form-control" name="shoulder_mobility_reach" value="{{ m['shoulder_mobility_reach'] if m['shoulder_mobility_reach'] else '' }}" />
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Postural Assessment</label>
+            <input class="form-control" name="postural_assessment" value="{{ m['postural_assessment'] if m['postural_assessment'] else '' }}" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Strengths</label>
+            <textarea class="form-control" name="trainer_strengths" rows="3">{{ m['trainer_strengths'] if m['trainer_strengths'] else '' }}</textarea>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Limitations</label>
+            <textarea class="form-control" name="trainer_limitations" rows="3">{{ m['trainer_limitations'] if m['trainer_limitations'] else '' }}</textarea>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Training Focus</label>
+            <textarea class="form-control" name="training_focus" rows="3">{{ m['training_focus'] if m['training_focus'] else '' }}</textarea>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Notes</label>
+            <textarea class="form-control" name="notes" rows="3">{{ m['notes'] if m['notes'] else '' }}</textarea>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <button class="btn btn-primary" type="submit">Save Changes</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('client_detail', client_id=client['id']) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

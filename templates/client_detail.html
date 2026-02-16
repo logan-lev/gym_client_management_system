@@ -3,7 +3,7 @@
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div>
       <h1 class="h3 mb-1">{{ client["first_name"] }} {{ client["last_name"] }}</h1>
-      <div class="text-muted">DOB: {{ client["date_of_birth"] }}</div>
+      <div class="text-muted">DOB: {{ to_mmddyyyy(client["date_of_birth"]) }}</div>
     </div>
     <div class="d-flex gap-2 flex-wrap">
       <a class="btn btn-outline-secondary" href="{{ url_for('client_edit', client_id=client['id']) }}">Edit Client</a>
@@ -38,20 +38,50 @@
       </div>
     </div>
 
+    <!-- Latest section now: Measurements + Functional Assessment side-by-side -->
     <div class="col-lg-6">
       <div class="card">
         <div class="card-header fw-semibold">Latest Measurements</div>
         <div class="card-body">
           {% if latest %}
-            <div class="text-muted mb-2">Date: {{ latest["date"] }}</div>
-            <ul class="mb-0">
-              <li>Weight: {{ latest["weight"] if latest["weight"] is not none else "-" }}</li>
-              <li>BMI: {{ latest["bmi"] if latest["bmi"] is not none else "-" }}</li>
-              <li>Fat %: {{ latest["fat_percentage"] if latest["fat_percentage"] is not none else "-" }}</li>
-              <li>Grip strength: {{ latest["grip_strength"] if latest["grip_strength"] is not none else "-" }}</li>
-              <li>Plank (sec): {{ latest["plank_seconds"] if latest["plank_seconds"] is not none else "-" }}</li>
-              <li>Push ups: {{ latest["push_ups"] if latest["push_ups"] is not none else "-" }}</li>
-            </ul>
+            <div class="text-muted mb-3">Date: {{ to_mmddyyyy(latest["date"]) }}</div>
+
+            <div class="row g-3">
+              <!-- Latest Measurements column -->
+              <div class="col-md-6">
+                <div class="fw-semibold mb-2">Measurements</div>
+                <ul class="mb-0">
+                  <li>Weight: {{ latest["weight"] if latest["weight"] is not none else "-" }}</li>
+                  <li>BMI: {{ latest["bmi"] if latest["bmi"] is not none else "-" }}</li>
+                  <li>Fat %: {{ latest["fat_percentage"] if latest["fat_percentage"] is not none else "-" }}</li>
+                  <li>Grip strength: {{ latest["grip_strength"] if latest["grip_strength"] is not none else "-" }}</li>
+                  <li>Plank (sec): {{ latest["plank_seconds"] if latest["plank_seconds"] is not none else "-" }}</li>
+                  <li>Push ups: {{ latest["push_ups"] if latest["push_ups"] is not none else "-" }}</li>
+                </ul>
+              </div>
+
+              <!-- Functional Assessment column (shows dashes when blank) -->
+              <div class="col-md-6">
+                <div class="fw-semibold mb-2">Functional Assessment</div>
+                <ul class="mb-0">
+                  <li>Bodyweight Squat (reps): {{ latest["bodyweight_squat_reps"] if latest["bodyweight_squat_reps"] is not none else "-" }}</li>
+                  <li>Chair Squat (reps): {{ latest["chair_squat_reps"] if latest["chair_squat_reps"] is not none else "-" }}</li>
+                  <li>Side Plank — Left (sec): {{ latest["side_plank_left_seconds"] if latest["side_plank_left_seconds"] is not none else "-" }}</li>
+                  <li>Side Plank — Right (sec): {{ latest["side_plank_right_seconds"] if latest["side_plank_right_seconds"] is not none else "-" }}</li>
+                  <li>Dead Hang (sec): {{ latest["dead_hang_seconds"] if latest["dead_hang_seconds"] is not none else "-" }}</li>
+                  <li>Grip — Left (kg): {{ latest["grip_left_kg"] if latest["grip_left_kg"] is not none else "-" }}</li>
+                  <li>Grip — Right (kg): {{ latest["grip_right_kg"] if latest["grip_right_kg"] is not none else "-" }}</li>
+                  <li>Single-Leg Balance — Left (sec): {{ latest["single_leg_balance_left_seconds"] if latest["single_leg_balance_left_seconds"] is not none else "-" }}</li>
+                  <li>Single-Leg Balance — Right (sec): {{ latest["single_leg_balance_right_seconds"] if latest["single_leg_balance_right_seconds"] is not none else "-" }}</li>
+                  <li>Shoulder Mobility Reach: {{ latest["shoulder_mobility_reach"] if (latest["shoulder_mobility_reach"]|default("")|trim != "") else "-" }}</li>
+                  <li>Postural Assessment: {{ latest["postural_assessment"] if (latest["postural_assessment"]|default("")|trim != "") else "-" }}</li>
+                  <li>Strengths: <span style="white-space: pre-wrap;">{{ latest["trainer_strengths"] if (latest["trainer_strengths"]|default("")|trim != "") else "-" }}</span></li>
+                  <li>Limitations: <span style="white-space: pre-wrap;">{{ latest["trainer_limitations"] if (latest["trainer_limitations"]|default("")|trim != "") else "-" }}</span></li>
+                  <li>Training Focus: <span style="white-space: pre-wrap;">{{ latest["training_focus"] if (latest["training_focus"]|default("")|trim != "") else "-" }}</span></li>
+                </ul>
+              </div>
+            </div>
+
           {% else %}
             <div class="text-muted">No measurements yet.</div>
           {% endif %}
@@ -59,11 +89,12 @@
       </div>
     </div>
 
+    <!-- Measurement History + assessment viewer + edit/delete -->
     <div class="col-12">
       <div class="card">
         <div class="card-header fw-semibold">Measurement History</div>
         <div class="table-responsive">
-          <table class="table table-striped mb-0">
+          <table class="table table-striped mb-0 align-middle">
             <thead>
               <tr>
                 <th>Date</th>
@@ -74,12 +105,13 @@
                 <th>Plank (sec)</th>
                 <th>Push ups</th>
                 <th>Notes</th>
+                <th class="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {% for m in measurements %}
                 <tr>
-                  <td>{{ m["date"] }}</td>
+                  <td>{{ to_mmddyyyy(m["date"]) }}</td>
                   <td>{{ m["weight"] if m["weight"] is not none else "" }}</td>
                   <td>{{ m["bmi"] if m["bmi"] is not none else "" }}</td>
                   <td>{{ m["fat_percentage"] if m["fat_percentage"] is not none else "" }}</td>
@@ -87,15 +119,110 @@
                   <td>{{ m["plank_seconds"] if m["plank_seconds"] is not none else "" }}</td>
                   <td>{{ m["push_ups"] if m["push_ups"] is not none else "" }}</td>
                   <td style="max-width: 420px; white-space: pre-wrap;">{{ m["notes"] or "" }}</td>
+
+                  <td class="text-center align-middle">
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#assessmentModal-{{ m['id'] }}"
+                      >
+                        View Assessment
+                      </button>
+
+                      <a
+                        class="btn btn-sm btn-outline-primary"
+                        href="{{ url_for('measurement_edit', measurement_id=m['id']) }}"
+                      >
+                        Edit
+                      </a>
+
+                      <form
+                        method="post"
+                        action="{{ url_for('measurement_delete', measurement_id=m['id']) }}"
+                        onsubmit="return confirm('Delete this measurement? This cannot be undone.');"
+                        class="d-inline"
+                      >
+                        <button class="btn btn-sm btn-outline-danger" type="submit">
+                          Delete
+                        </button>
+                      </form>
+
+                    </div>
+                  </td>
                 </tr>
+
+                <!-- Modal -->
+                <div class="modal fade" id="assessmentModal-{{ m['id'] }}" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title">Functional Assessment — {{ to_mmddyyyy(m["date"]) }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        <div class="row g-3">
+                          <div class="col-md-6">
+                            <div class="fw-semibold mb-2">Strength / Endurance</div>
+                            <ul class="mb-0">
+                              <li>Bodyweight Squat (reps): {{ m["bodyweight_squat_reps"] if m["bodyweight_squat_reps"] is not none else "-" }}</li>
+                              <li>Chair Squat (reps): {{ m["chair_squat_reps"] if m["chair_squat_reps"] is not none else "-" }}</li>
+                              <li>Dead Hang (sec): {{ m["dead_hang_seconds"] if m["dead_hang_seconds"] is not none else "-" }}</li>
+                              <li>Side Plank — Left (sec): {{ m["side_plank_left_seconds"] if m["side_plank_left_seconds"] is not none else "-" }}</li>
+                              <li>Side Plank — Right (sec): {{ m["side_plank_right_seconds"] if m["side_plank_right_seconds"] is not none else "-" }}</li>
+                            </ul>
+                          </div>
+
+                          <div class="col-md-6">
+                            <div class="fw-semibold mb-2">Balance / Mobility</div>
+                            <ul class="mb-0">
+                              <li>Single-Leg Balance — Left (sec): {{ m["single_leg_balance_left_seconds"] if m["single_leg_balance_left_seconds"] is not none else "-" }}</li>
+                              <li>Single-Leg Balance — Right (sec): {{ m["single_leg_balance_right_seconds"] if m["single_leg_balance_right_seconds"] is not none else "-" }}</li>
+                              <li>Shoulder Mobility Reach: {{ m["shoulder_mobility_reach"] if (m["shoulder_mobility_reach"]|default("")|trim != "") else "-" }}</li>
+                              <li>Postural Assessment: {{ m["postural_assessment"] if (m["postural_assessment"]|default("")|trim != "") else "-" }}</li>
+                            </ul>
+                          </div>
+
+                          <div class="col-12">
+                            <hr class="my-2" />
+                          </div>
+
+                          <div class="col-md-6">
+                            <div class="fw-semibold mb-2">Grip</div>
+                            <ul class="mb-0">
+                              <li>Grip — Left (kg): {{ m["grip_left_kg"] if m["grip_left_kg"] is not none else "-" }}</li>
+                              <li>Grip — Right (kg): {{ m["grip_right_kg"] if m["grip_right_kg"] is not none else "-" }}</li>
+                            </ul>
+                          </div>
+
+                          <div class="col-md-6">
+                            <div class="fw-semibold mb-2">Coaching Notes</div>
+                            <ul class="mb-0">
+                              <li>Strengths: <span style="white-space: pre-wrap;">{{ m["trainer_strengths"] if (m["trainer_strengths"]|default("")|trim != "") else "-" }}</span></li>
+                              <li>Limitations: <span style="white-space: pre-wrap;">{{ m["trainer_limitations"] if (m["trainer_limitations"]|default("")|trim != "") else "-" }}</span></li>
+                              <li>Training Focus: <span style="white-space: pre-wrap;">{{ m["training_focus"] if (m["training_focus"]|default("")|trim != "") else "-" }}</span></li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               {% endfor %}
+
               {% if measurements|length == 0 %}
-                <tr><td colspan="8" class="text-center text-muted py-4">No measurement history.</td></tr>
+                <tr><td colspan="9" class="text-center text-muted py-4">No measurement history.</td></tr>
               {% endif %}
             </tbody>
           </table>
         </div>
       </div>
     </div>
+
   </div>
 {% endblock %}

@@ -6,41 +6,135 @@
     <div class="card-body">
       <form method="post">
         <div class="row g-3">
+
+          <!-- Core -->
           <div class="col-md-4">
-            <label class="form-label">Date (YYYY-MM-DD)</label>
-            <input class="form-control" name="date" value="{{ today if today else '' }}" required />
+            <label class="form-label">Date (MM/DD/YYYY)</label>
+            <input
+              class="form-control"
+              name="date"
+              value="{{ today if today else '' }}"
+              placeholder="MM/DD/YYYY"
+              required
+            />
           </div>
 
           <div class="col-md-4">
             <label class="form-label">Weight</label>
-            <input class="form-control" name="weight" placeholder="e.g. 185.2" />
+            <input class="form-control" name="weight" placeholder="e.g. 185.2" inputmode="decimal" />
           </div>
 
           <div class="col-md-4">
             <label class="form-label">BMI</label>
-            <input class="form-control" name="bmi" placeholder="e.g. 24.8" />
+            <input class="form-control" name="bmi" placeholder="e.g. 24.8" inputmode="decimal" />
           </div>
 
           <div class="col-md-4">
             <label class="form-label">Fat %</label>
-            <input class="form-control" name="fat_percentage" placeholder="e.g. 18.5" />
+            <input class="form-control" name="fat_percentage" placeholder="e.g. 18.5" inputmode="decimal" />
           </div>
 
           <div class="col-md-4">
             <label class="form-label">Grip strength</label>
-            <input class="form-control" name="grip_strength" placeholder="e.g. 105" />
+            <input class="form-control" name="grip_strength" placeholder="e.g. 105" inputmode="decimal" />
           </div>
 
           <div class="col-md-4">
             <label class="form-label">Plank (seconds)</label>
-            <input class="form-control" name="plank_seconds" placeholder="e.g. 90" />
+            <input class="form-control" name="plank_seconds" placeholder="e.g. 90" inputmode="numeric" />
           </div>
 
           <div class="col-md-4">
             <label class="form-label">Push ups</label>
-            <input class="form-control" name="push_ups" placeholder="e.g. 32" />
+            <input class="form-control" name="push_ups" placeholder="e.g. 32" inputmode="numeric" />
           </div>
 
+          <!-- Divider -->
+          <div class="col-12 mt-2">
+            <hr class="my-2" />
+            <h2 class="h5 mb-0">Functional Assessment (Optional)</h2>
+            <p class="text-muted mb-0" style="font-size: 0.95rem;">
+              Fill out any fields that apply for this date.
+            </p>
+          </div>
+
+          <!-- Squats -->
+          <div class="col-md-4">
+            <label class="form-label">Bodyweight Squat (reps)</label>
+            <input class="form-control" name="bodyweight_squat_reps" placeholder="e.g. 15" inputmode="numeric" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Chair Squat (reps)</label>
+            <input class="form-control" name="chair_squat_reps" placeholder="e.g. 12" inputmode="numeric" />
+          </div>
+
+          <!-- Side planks -->
+          <div class="col-md-4">
+            <label class="form-label">Side Plank — Left (seconds)</label>
+            <input class="form-control" name="side_plank_left_seconds" placeholder="e.g. 45" inputmode="numeric" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Side Plank — Right (seconds)</label>
+            <input class="form-control" name="side_plank_right_seconds" placeholder="e.g. 40" inputmode="numeric" />
+          </div>
+
+          <!-- Dead hang -->
+          <div class="col-md-4">
+            <label class="form-label">Dead Hang (seconds)</label>
+            <input class="form-control" name="dead_hang_seconds" placeholder="e.g. 30" inputmode="numeric" />
+          </div>
+
+          <!-- Grip left/right -->
+          <div class="col-md-4">
+            <label class="form-label">Grip Strength — Left (kg)</label>
+            <input class="form-control" name="grip_left_kg" placeholder="e.g. 42.5" inputmode="decimal" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Grip Strength — Right (kg)</label>
+            <input class="form-control" name="grip_right_kg" placeholder="e.g. 45.0" inputmode="decimal" />
+          </div>
+
+          <!-- Single leg balance -->
+          <div class="col-md-4">
+            <label class="form-label">Single-Leg Balance — Left (seconds)</label>
+            <input class="form-control" name="single_leg_balance_left_seconds" placeholder="e.g. 20" inputmode="numeric" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Single-Leg Balance — Right (seconds)</label>
+            <input class="form-control" name="single_leg_balance_right_seconds" placeholder="e.g. 18" inputmode="numeric" />
+          </div>
+
+          <!-- Mobility / posture + summaries -->
+          <div class="col-md-6">
+            <label class="form-label">Shoulder Mobility Reach</label>
+            <input class="form-control" name="shoulder_mobility_reach" placeholder="e.g. L: T6, R: T8 (or notes)" />
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Postural Assessment</label>
+            <input class="form-control" name="postural_assessment" placeholder="e.g. rounded shoulders, anterior tilt..." />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Strengths (trainer notes)</label>
+            <textarea class="form-control" name="trainer_strengths" rows="3" placeholder="Optional..."></textarea>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Limitations (trainer notes)</label>
+            <textarea class="form-control" name="trainer_limitations" rows="3" placeholder="Optional..."></textarea>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Training Focus</label>
+            <textarea class="form-control" name="training_focus" rows="3" placeholder="Optional..."></textarea>
+          </div>
+
+          <!-- General notes -->
           <div class="col-12">
             <label class="form-label">Notes</label>
             <textarea class="form-control" name="notes" rows="3" placeholder="Optional session notes..."></textarea>

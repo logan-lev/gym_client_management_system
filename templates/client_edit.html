@@ -15,8 +15,14 @@
             <input class="form-control" name="last_name" value="{{ client['last_name'] }}" required />
           </div>
           <div class="col-md-6">
-            <label class="form-label">Date of birth (YYYY-MM-DD)</label>
-            <input class="form-control" name="date_of_birth" value="{{ client['date_of_birth'] }}" required />
+            <label class="form-label">Date of birth (MM/DD/YYYY)</label>
+            <input
+              class="form-control"
+              name="date_of_birth"
+              value="{{ to_mmddyyyy(client['date_of_birth']) }}"
+              placeholder="MM/DD/YYYY"
+              required
+            />
           </div>
         </div>
 
