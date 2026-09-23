@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1 class="h3 mb-3">Log Workout — {{ client["first_name"] }} {{ client["last_name"] }}</h1>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Date (MM/DD/YYYY)</label>
+            <input
+              class="form-control"
+              name="date"
+              value="{{ today if today else '' }}"
+              placeholder="MM/DD/YYYY"
+              required
+            />
+          </div>
+
+          <div class="col-md-8">
+            <label class="form-label">Workout Name</label>
+            <input class="form-control" name="workout_name" placeholder="e.g. Leg Day" />
+          </div>
+        </div>
+
+        <hr class="my-3" />
+
+        <h2 class="h5 mb-2">Exercises</h2>
+        <div class="table-responsive">
+          <table class="table align-middle" id="exerciseTable">
+            <thead>
+              <tr>
+                <th>Exercise</th>
+                <th style="width: 110px;">Sets</th>
+                <th style="width: 160px;">Reps</th>
+                <th style="width: 160px;">Weight</th>
+                <th style="width: 60px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="exercise-row">
+                <td><input class="form-control" name="exercise_name[]" placeholder="e.g. Barbell Squat" /></td>
+                <td><input class="form-control" name="sets[]" placeholder="e.g. 3" inputmode="numeric" /></td>
+                <td><input class="form-control" name="reps[]" placeholder="e.g. 8 or 10,8,6" /></td>
+                <td><input class="form-control" name="weight[]" placeholder="e.g. 135" /></td>
+                <td class="text-center">
+                  <button type="button" class="btn btn-sm btn-outline-danger remove-row-btn">&times;</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="addRowBtn">+ Add Exercise</button>
+
+        <div class="mt-4">
+          <label class="form-label">Notes</label>
+          <textarea class="form-control" name="notes" rows="3" placeholder="Optional session notes..."></textarea>
+        </div>
+
+        <div class="mt-3">
+          <button class="btn btn-primary" type="submit">Save</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('client_detail', client_id=client['id']) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const tableBody = document.querySelector('#exerciseTable tbody');
+      const addRowBtn = document.getElementById('addRowBtn');
+
+      function addRow() {
+        const row = tableBody.querySelector('.exercise-row').cloneNode(true);
+        row.querySelectorAll('input').forEach((input) => (input.value = ''));
+        tableBody.appendChild(row);
+      }
+
+      tableBody.addEventListener('click', function (e) {
+        if (e.target.classList.contains('remove-row-btn')) {
+          if (tableBody.querySelectorAll('.exercise-row').length > 1) {
+            e.target.closest('.exercise-row').remove();
+          } else {
+            e.target.closest('.exercise-row').querySelectorAll('input').forEach((input) => (input.value = ''));
+          }
+        }
+      });
+
+      addRowBtn.addEventListener('click', addRow);
+    })();
+  </script>
+{% endblock %}

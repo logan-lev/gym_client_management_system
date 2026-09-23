@@ -9,6 +9,7 @@
       <a class="btn btn-outline-secondary" href="{{ url_for('client_edit', client_id=client['id']) }}">Edit Client</a>
       <a class="btn btn-outline-secondary" href="{{ url_for('health_edit', client_id=client['id']) }}">Edit Health</a>
       <a class="btn btn-primary" href="{{ url_for('measurement_new', client_id=client['id']) }}">+ Add Measurement</a>
+      <a class="btn btn-primary" href="{{ url_for('workout_new', client_id=client['id']) }}">+ Log Workout</a>
 
       <form
         method="post"
@@ -217,6 +218,124 @@
 
               {% if measurements|length == 0 %}
                 <tr><td colspan="9" class="text-center text-muted py-4">No measurement history.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workout Log -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header fw-semibold">Workout Log</div>
+        <div class="table-responsive">
+          <table class="table table-striped mb-0 align-middle">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Workout</th>
+                <th>Exercises</th>
+                <th class="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for w in workouts %}
+                {% set exercises = workout_exercises_by_workout[w['id']] %}
+                <tr>
+                  <td>{{ to_mmddyyyy(w["date"]) }}</td>
+                  <td>{{ w["workout_name"] or "-" }}</td>
+                  <td>
+                    {% if exercises|length > 0 %}
+                      {{ exercises|map(attribute="exercise_name")|join(", ") }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                  <td class="text-center align-middle">
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#workoutModal-{{ w['id'] }}"
+                      >
+                        View
+                      </button>
+
+                      <a
+                        class="btn btn-sm btn-outline-primary"
+                        href="{{ url_for('workout_edit', workout_id=w['id']) }}"
+                      >
+                        Edit
+                      </a>
+
+                      <form
+                        method="post"
+                        action="{{ url_for('workout_delete', workout_id=w['id']) }}"
+                        onsubmit="return confirm('Delete this workout? This cannot be undone.');"
+                        class="d-inline"
+                      >
+                        <button class="btn btn-sm btn-outline-danger" type="submit">
+                          Delete
+                        </button>
+                      </form>
+
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Modal -->
+                <div class="modal fade" id="workoutModal-{{ w['id'] }}" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title">{{ w["workout_name"] or "Workout" }} — {{ to_mmddyyyy(w["date"]) }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        {% if exercises|length > 0 %}
+                          <table class="table table-sm mb-0">
+                            <thead>
+                              <tr>
+                                <th>Exercise</th>
+                                <th>Sets</th>
+                                <th>Reps</th>
+                                <th>Weight</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {% for ex in exercises %}
+                                <tr>
+                                  <td>{{ ex["exercise_name"] }}</td>
+                                  <td>{{ ex["sets"] if ex["sets"] is not none else "-" }}</td>
+                                  <td>{{ ex["reps"] if (ex["reps"]|default("")|trim != "") else "-" }}</td>
+                                  <td>{{ ex["weight"] if (ex["weight"]|default("")|trim != "") else "-" }}</td>
+                                </tr>
+                              {% endfor %}
+                            </tbody>
+                          </table>
+                        {% else %}
+                          <div class="text-muted">No exercises logged.</div>
+                        {% endif %}
+
+                        {% if w["notes"] %}
+                          <hr class="my-3" />
+                          <div class="fw-semibold mb-1">Notes</div>
+                          <div style="white-space: pre-wrap;">{{ w["notes"] }}</div>
+                        {% endif %}
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+
+              {% if workouts|length == 0 %}
+                <tr><td colspan="4" class="text-center text-muted py-4">No workouts logged.</td></tr>
               {% endif %}
             </tbody>
           </table>

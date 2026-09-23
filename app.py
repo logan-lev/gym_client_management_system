@@ -157,6 +157,35 @@ def init_db():
 
         CREATE INDEX IF NOT EXISTS idx_measurements_client_date
         ON measurements(client_id, date);
+
+        CREATE TABLE IF NOT EXISTS workouts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          client_id INTEGER NOT NULL,
+          date TEXT NOT NULL, -- ISO 'YYYY-MM-DD'
+          workout_name TEXT,
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+
+          FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS workout_exercises (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          workout_id INTEGER NOT NULL,
+          position INTEGER NOT NULL DEFAULT 0,
+          exercise_name TEXT NOT NULL,
+          sets INTEGER,
+          reps TEXT,
+          weight TEXT,
+
+          FOREIGN KEY (workout_id) REFERENCES workouts(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_workouts_client_date
+        ON workouts(client_id, date);
+
+        CREATE INDEX IF NOT EXISTS idx_workout_exercises_workout
+        ON workout_exercises(workout_id, position);
         """
     )
 
@@ -366,12 +395,35 @@ def client_detail(client_id):
 
     latest = measurements[0] if measurements else None
 
+    workouts = db.execute(
+        """
+        SELECT * FROM workouts
+        WHERE client_id = ?
+        ORDER BY date DESC, id DESC
+        """,
+        (client_id,),
+    ).fetchall()
+
+    workout_exercises_by_workout = {}
+    for w in workouts:
+        exercises = db.execute(
+            """
+            SELECT * FROM workout_exercises
+            WHERE workout_id = ?
+            ORDER BY position, id
+            """,
+            (w["id"],),
+        ).fetchall()
+        workout_exercises_by_workout[w["id"]] = exercises
+
     return render_template(
         "client_detail.html",
         client=client,
         health=health,
         measurements=measurements,
         latest=latest,
+        workouts=workouts,
+        workout_exercises_by_workout=workout_exercises_by_workout,
     )
 
 
@@ -764,6 +816,178 @@ def measurement_delete(measurement_id):
     return redirect(url_for("client_detail", client_id=client_id))
 
 
+def _parse_workout_exercises(form):
+    """
+    Reads parallel arrays (exercise_name[], sets[], reps[], weight[]) from the
+    submitted form and returns (exercises, errors). Rows with a blank exercise
+    name are skipped.
+    """
+    names = form.getlist("exercise_name[]")
+    sets_list = form.getlist("sets[]")
+    reps_list = form.getlist("reps[]")
+    weight_list = form.getlist("weight[]")
+
+    exercises = []
+    errors = []
+
+    for i, raw_name in enumerate(names):
+        name = raw_name.strip()
+        if not name:
+            continue
+
+        sets_raw = sets_list[i] if i < len(sets_list) else ""
+        reps_raw = reps_list[i] if i < len(reps_list) else ""
+        weight_raw = weight_list[i] if i < len(weight_list) else ""
+
+        sets = parse_int(sets_raw)
+        if sets == "INVALID":
+            errors.append(f"Sets for '{name}' must be a number (or left blank).")
+            sets = None
+
+        exercises.append(
+            {
+                "exercise_name": name,
+                "sets": sets,
+                "reps": reps_raw.strip(),
+                "weight": weight_raw.strip(),
+            }
+        )
+
+    return exercises, errors
+
+
+@app.route("/clients/<int:client_id>/workouts/new", methods=["GET", "POST"])
+@login_required
+def workout_new(client_id):
+    db = get_db()
+    client = db.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
+    if client is None:
+        flash("Client not found.", "error")
+        return redirect(url_for("clients_list"))
+
+    if request.method == "POST":
+        date = parse_date(request.form.get("date", ""))
+        workout_name = request.form.get("workout_name", "").strip()
+        notes = request.form.get("notes", "").strip()
+
+        exercises, exercise_errors = _parse_workout_exercises(request.form)
+
+        errors = []
+        if date in (None, "INVALID"):
+            errors.append("Workout date must be MM/DD/YYYY or YYYY-MM-DD.")
+        errors.extend(exercise_errors)
+
+        if errors:
+            for e in errors:
+                flash(e, "error")
+            return render_template("workout_new.html", client=client)
+
+        cur = db.execute(
+            """
+            INSERT INTO workouts (client_id, date, workout_name, notes)
+            VALUES (?, ?, ?, ?)
+            """,
+            (client_id, date, workout_name, notes),
+        )
+        workout_id = cur.lastrowid
+
+        for position, ex in enumerate(exercises):
+            db.execute(
+                """
+                INSERT INTO workout_exercises (workout_id, position, exercise_name, sets, reps, weight)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (workout_id, position, ex["exercise_name"], ex["sets"], ex["reps"], ex["weight"]),
+            )
+
+        db.commit()
+        flash("Workout logged.", "success")
+        return redirect(url_for("client_detail", client_id=client_id))
+
+    today_iso = datetime.now().strftime("%Y-%m-%d")
+    today_us = to_mmddyyyy(today_iso)
+    return render_template("workout_new.html", client=client, today=today_us)
+
+
+@app.route("/workouts/<int:workout_id>/edit", methods=["GET", "POST"])
+@login_required
+def workout_edit(workout_id):
+    db = get_db()
+    workout = db.execute("SELECT * FROM workouts WHERE id = ?", (workout_id,)).fetchone()
+    if workout is None:
+        flash("Workout not found.", "error")
+        return redirect(url_for("clients_list"))
+
+    client = db.execute("SELECT * FROM clients WHERE id = ?", (workout["client_id"],)).fetchone()
+    if client is None:
+        flash("Client not found.", "error")
+        return redirect(url_for("clients_list"))
+
+    if request.method == "POST":
+        date = parse_date(request.form.get("date", ""))
+        workout_name = request.form.get("workout_name", "").strip()
+        notes = request.form.get("notes", "").strip()
+
+        exercises, exercise_errors = _parse_workout_exercises(request.form)
+
+        errors = []
+        if date in (None, "INVALID"):
+            errors.append("Workout date must be MM/DD/YYYY or YYYY-MM-DD.")
+        errors.extend(exercise_errors)
+
+        if errors:
+            for e in errors:
+                flash(e, "error")
+            return render_template("workout_edit.html", client=client, workout=workout, exercises=exercises)
+
+        db.execute(
+            """
+            UPDATE workouts
+            SET date = ?, workout_name = ?, notes = ?
+            WHERE id = ?
+            """,
+            (date, workout_name, notes, workout_id),
+        )
+
+        db.execute("DELETE FROM workout_exercises WHERE workout_id = ?", (workout_id,))
+        for position, ex in enumerate(exercises):
+            db.execute(
+                """
+                INSERT INTO workout_exercises (workout_id, position, exercise_name, sets, reps, weight)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (workout_id, position, ex["exercise_name"], ex["sets"], ex["reps"], ex["weight"]),
+            )
+
+        db.commit()
+        flash("Workout updated.", "success")
+        return redirect(url_for("client_detail", client_id=client["id"]))
+
+    exercises = db.execute(
+        "SELECT * FROM workout_exercises WHERE workout_id = ? ORDER BY position, id",
+        (workout_id,),
+    ).fetchall()
+
+    return render_template("workout_edit.html", client=client, workout=workout, exercises=exercises)
+
+
+@app.route("/workouts/<int:workout_id>/delete", methods=["POST"])
+@login_required
+def workout_delete(workout_id):
+    db = get_db()
+    workout = db.execute("SELECT * FROM workouts WHERE id = ?", (workout_id,)).fetchone()
+    if workout is None:
+        flash("Workout not found.", "error")
+        return redirect(url_for("clients_list"))
+
+    client_id = workout["client_id"]
+    db.execute("DELETE FROM workouts WHERE id = ?", (workout_id,))
+    db.commit()
+
+    flash("Workout deleted.", "success")
+    return redirect(url_for("client_detail", client_id=client_id))
+
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 3000))
     app.run(host="0.0.0.0", port=port)
